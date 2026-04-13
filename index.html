@@ -8,6 +8,16 @@
 
 <body>
 
+<!-- 🔐 ロック画面 -->
+<div id="lock">
+  <h2>パスワード</h2>
+  <input type="password" id="pass" placeholder="パスワード">
+  <button onclick="unlock()">入る</button>
+</div>
+
+<!-- アプリ本体 -->
+<div id="app" style="display:none;">
+
 <h1>AI文字起こし</h1>
 
 <button onclick="startRecording()">開始</button>
@@ -23,6 +33,8 @@
 <button onclick="searchText()">検索</button>
 
 <div id="result"></div>
+
+</div>
 
 <script src="script.js"></script>
 </body>
