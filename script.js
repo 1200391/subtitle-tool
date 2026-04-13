@@ -12,10 +12,12 @@ function unlock() {
   }
 }
 
+// 📦 履歴（保存）
+let history = JSON.parse(localStorage.getItem("history")) || [];
+
 // 🎤 音声認識
 let recognition;
 let currentText = "";
-let history = [];
 
 function startRecording() {
   currentText = "";
@@ -40,7 +42,9 @@ function startRecording() {
       }
     }
 
-    document.getElementById("live").innerText = interim;
+    // 🔥 録音中ずっと残る表示
+    document.getElementById("live").innerText =
+      currentText + "\n" + interim;
   };
 
   recognition.start();
@@ -62,7 +66,17 @@ async function stopRecording() {
     // 💾 GitHub保存
     await saveToGit(diarized);
 
-    history.unshift("【要約】\n" + summary + "\n\n" + diarized);
+    // 📦 履歴追加
+    const entry = "【要約】\n" + summary + "\n\n" + diarized;
+    history.unshift(entry);
+
+    // 🔥 最大10件
+    if (history.length > 10) {
+      history.pop();
+    }
+
+    // 🔥 保存
+    localStorage.setItem("history", JSON.stringify(history));
 
     updateHistory();
   } catch (e) {
@@ -78,20 +92,31 @@ function updateHistory() {
   const container = document.getElementById("history");
   container.innerHTML = "";
 
-  history.forEach(text => {
+  history.forEach((text, index) => {
     const div = document.createElement("div");
     div.className = "item";
     div.innerText = text;
 
-    const btn = document.createElement("button");
-    btn.innerText = "コピー";
-    btn.onclick = () => {
+    // 📋 コピー
+    const copyBtn = document.createElement("button");
+    copyBtn.innerText = "コピー";
+    copyBtn.onclick = () => {
       navigator.clipboard.writeText(text);
       alert("コピーしました");
     };
 
+    // ❌ 削除
+    const deleteBtn = document.createElement("button");
+    deleteBtn.innerText = "削除";
+    deleteBtn.onclick = () => {
+      history.splice(index, 1);
+      localStorage.setItem("history", JSON.stringify(history));
+      updateHistory();
+    };
+
     div.appendChild(document.createElement("br"));
-    div.appendChild(btn);
+    div.appendChild(copyBtn);
+    div.appendChild(deleteBtn);
 
     container.appendChild(div);
   });
@@ -115,7 +140,8 @@ async function searchText() {
 
   try {
     const summary = await summarize(results.join("\n"));
-    document.getElementById("result").innerText = "▼要約\n" + summary;
+    document.getElementById("result").innerText =
+      "▼要約\n" + summary;
   } catch (e) {
     console.error(e);
     alert("検索要約でエラー");
@@ -154,3 +180,8 @@ async function saveToGit(text) {
     body: JSON.stringify({ text })
   });
 }
+
+// 🚀 初期表示
+window.onload = () => {
+  updateHistory();
+};
