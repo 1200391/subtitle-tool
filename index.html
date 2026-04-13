@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<title>非公開文字起こしツール</title>
+
+<style>
+body {
+  font-family: sans-serif;
+  padding: 20px;
+}
+
+/* ロック画面 */
+#lockScreen {
+  text-align: center;
+  margin-top: 100px;
+}
+
+input {
+  font-size: 18px;
+  padding: 10px;
+}
+
+button {
+  font-size: 18px;
+  padding: 10px;
+  margin: 5px;
+}
+
+/* 本体 */
+#main {
+  display: none;
+}
+
+#live {
+  border: 1px solid #ccc;
+  padding: 10px;
+  height: 80px;
+}
+
+.item {
+  border: 1px solid #999;
+  padding: 10px;
+  margin: 10px 0;
+  white-space: pre-wrap;
+}
+
+#result {
+  border: 2px solid green;
+  padding: 10px;
+  margin-top: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- 🔐 ロック画面 -->
+<div id="lockScreen">
+  <h2>🔒 パスワード入力</h2>
+  <input type="password" id="pass" placeholder="パスワード">
+  <br>
+  <button onclick="unlock()">入る</button>
+</div>
+
+<!-- 🧠 メインアプリ -->
+<div id="main">
+
+<h2>🎤 録音</h2>
+<button onclick="startRecording()">開始</button>
+<button onclick="stopRecording()">終了</button>
+
+<div id="live"></div>
+
+<h2>📜 履歴（最大10件）</h2>
+<div id="history"></div>
+
+<h2>🔍 検索</h2>
+<input id="search">
+<button onclick="searchText()">検索</button>
+
+<div id="result"></div>
+
+</div>
+
+<script>
+const PASSWORD = "Spoon"; // ←ここ変更
+
+// 🔐 ログイン処理
+function unlock() {
+  const input = document.getElementById("pass").value;
+
+  if (input === PASSWORD) {
+    localStorage.setItem("auth", "ok");
+    showMain();
+  } else {
+    alert("パスワードが違います");
+  }
+}
+
+// 🔓 ログイン状態保持
+function showMain() {
+  document.getElementById("lockScreen").style.display = "none";
+  document.getElementById("main").style.display = "block";
+}
+
+// ページ読み込み時
+if (localStorage.getItem("auth") === "ok") {
+  showMain();
+}
+
+// 🎤 音声認識
+let recognition;
+let currentText = "";
+let history = JSON.parse(localStorage.getItem("history")) || [];
+
+function startRecording() {
+  currentText = "";
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+
+  recognition.lang = "ja-JP";
+  recognition.interimResults = true;
+  recognition.continuous = true;
+
+  recognition.onresult = (event) => {
+    let interim = "";
+
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      let transcript = event.results[i][0].transcript;
+
+      if (event.results[i].isFinal) {
+        currentText += transcript + "\n";
+      } else {
+        interim += transcript;
+      }
+    }
+
+    document.getElementById("live").innerText = interim;
+  };
+
+  recognition.start();
+}
+
+function stopRecording() {
+  recognition.stop();
+
+  if (currentText.trim() !== "") {
+    history.unshift(currentText);
+
+    if (history.length > 10) {
+      history.pop();
+    }
+
+    localStorage.setItem("history", JSON.stringify(history));
+    updateHistoryUI();
+  }
+
+  document.getElementById("live").innerText = "";
+}
+
+// 📜 履歴表示
+function updateHistoryUI() {
+  const container = document.getElementById("history");
+  container.innerHTML = "";
+
+  history.forEach(text => {
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerText = text;
+
+    const btn = document.createElement("button");
+    btn.innerText = "コピー";
+    btn.onclick = () => {
+      navigator.clipboard.writeText(text);
+      alert("コピーしました");
+    };
+
+    div.appendChild(document.createElement("br"));
+    div.appendChild(btn);
+    container.appendChild(div);
+  });
+}
+
+// 🔍 検索
+function searchText() {
+  const keyword = document.getElementById("search").value;
+  let results = [];
+
+  history.forEach(text => {
+    text.split("\n").forEach(line => {
+      if (line.includes(keyword)) {
+        results.push(line);
+      }
+    });
+  });
+
+  document.getElementById("result").innerText =
+    results.length ? results.join("\n") : "該当なし";
+}
+
+// 初期表示
+updateHistoryUI();
+</script>
+
+</body>
+</html>
