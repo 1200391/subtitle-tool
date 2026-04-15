@@ -11,17 +11,15 @@ function unlock() {
 // 📦 履歴
 let history = JSON.parse(localStorage.getItem("history")) || [];
 
-// 🎤 録音（マイク方式）
+// 🎤 録音（マイク）
 let mediaRecorder;
 let audioChunks = [];
 let currentText = "";
 
-// 🎤 録音開始（スピーカー音も拾う）
+// 🎤 録音開始
 async function startRecording() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true
-    });
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
     mediaRecorder = new MediaRecorder(stream);
     audioChunks = [];
@@ -43,7 +41,6 @@ async function startRecording() {
     document.getElementById("live").innerText = "録音中...";
 
   } catch (e) {
-    console.error(e);
     alert("マイクが使えません");
   }
 }
@@ -53,7 +50,7 @@ function stopRecording() {
   if (mediaRecorder) mediaRecorder.stop();
 }
 
-// 🎧 Whisper送信
+// 🎧 Whisper
 async function sendAudio(blob) {
   try {
     const formData = new FormData();
@@ -71,20 +68,28 @@ async function sendAudio(blob) {
     document.getElementById("live").innerText = currentText;
 
   } catch (e) {
-    console.error(e);
     document.getElementById("live").innerText = "エラーが発生しました";
   }
 }
 
-// 💾 保存
+// 💾 保存（話者分離込み）
 async function saveCurrent() {
   if (!currentText.trim()) return;
 
   const title = document.getElementById("title").value || "無題";
 
+  let diarized = currentText;
+
+  try {
+    // 🔥 句読点補正 → 話者分離
+    diarized = await diarize(formatText(currentText));
+  } catch (e) {
+    console.error("話者分離失敗", e);
+  }
+
   const item = {
     title,
-    content: currentText,
+    content: diarized,
     date: new Date().toLocaleString()
   };
 
@@ -121,7 +126,7 @@ function openDetail(i) {
   const h = history[i];
 
   document.getElementById("detailText").innerText =
-    "【" + h.title + "】\n\n" + formatText(h.content);
+    "【" + h.title + "】\n\n" + h.content;
 }
 
 // 🔙 戻る
@@ -161,7 +166,6 @@ async function searchText() {
       summary || "要約できませんでした";
 
   } catch (e) {
-    console.error(e);
     document.getElementById("result").innerText = "要約に失敗しました";
   }
 }
@@ -175,6 +179,18 @@ function formatText(text) {
     .replace(/？/g, "？\n")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+// 👥 話者分離
+async function diarize(text) {
+  const res = await fetch("/api/diarize", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ text })
+  });
+
+  const data = await res.json();
+  return data.result || text;
 }
 
 // 🧠 要約
