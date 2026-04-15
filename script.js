@@ -11,37 +11,44 @@ function unlock() {
 // 📦 履歴
 let history = JSON.parse(localStorage.getItem("history")) || [];
 
-// 🎤 録音
+// 🎤 録音（マイク方式）
 let mediaRecorder;
 let audioChunks = [];
 let currentText = "";
 
-// 🎤 録音開始（画面＋音声）
+// 🎤 録音開始（スピーカー音も拾う）
 async function startRecording() {
-  const stream = await navigator.mediaDevices.getDisplayMedia({
-    video: true,
-    audio: true
-  });
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true
+    });
 
-  mediaRecorder = new MediaRecorder(stream);
-  audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
 
-  mediaRecorder.ondataavailable = e => {
-    audioChunks.push(e.data);
-  };
+    mediaRecorder.ondataavailable = e => {
+      audioChunks.push(e.data);
+    };
 
-  mediaRecorder.onstop = async () => {
-    const blob = new Blob(audioChunks, { type: "audio/webm" });
+    mediaRecorder.onstop = async () => {
+      const blob = new Blob(audioChunks, { type: "audio/webm" });
 
-    document.getElementById("live").innerText = "文字起こし中...";
+      document.getElementById("live").innerText = "文字起こし中...";
 
-    await sendAudio(blob);
-  };
+      await sendAudio(blob);
+    };
 
-  mediaRecorder.start();
+    mediaRecorder.start();
+
+    document.getElementById("live").innerText = "録音中...";
+
+  } catch (e) {
+    console.error(e);
+    alert("マイクが使えません");
+  }
 }
 
-// 🛑 録音終了
+// 🛑 録音停止
 function stopRecording() {
   if (mediaRecorder) mediaRecorder.stop();
 }
@@ -106,7 +113,7 @@ function updateHistory() {
   });
 }
 
-// 📄 詳細
+// 📄 詳細表示
 function openDetail(i) {
   document.getElementById("app").style.display = "none";
   document.getElementById("detailPage").style.display = "block";
