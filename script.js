@@ -126,7 +126,7 @@ async function searchText() {
 
   if (!key) return;
 
-  // 🟢 タイトル一致（完全 or 部分一致）
+  // 🟢 タイトル一致
   const titleMatch = history.find(h =>
     h.title.includes(key)
   );
@@ -136,17 +136,18 @@ async function searchText() {
       const summary = await summarize(titleMatch.content);
 
       document.getElementById("result").innerText =
-        "▼タイトル一致の要約\n\n" + summary;
+        summary || "要約できませんでした";
 
       return;
     } catch (e) {
       console.error(e);
-      alert("要約エラー");
+      document.getElementById("result").innerText =
+        "要約に失敗しました";
       return;
     }
   }
 
-  // 🔵 本文検索（複数ヒット）
+  // 🔵 本文検索
   const texts = history
     .filter(h => h.content.includes(key))
     .map(h => h.content)
@@ -161,11 +162,12 @@ async function searchText() {
     const summary = await summarize(texts);
 
     document.getElementById("result").innerText =
-      "▼検索結果の要約\n\n" + summary;
+      summary || "要約できませんでした";
 
   } catch (e) {
     console.error(e);
-    alert("要約エラー");
+    document.getElementById("result").innerText =
+      "要約に失敗しました";
   }
 }
 
