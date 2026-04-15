@@ -197,7 +197,9 @@ async function summarize(text) {
     body: JSON.stringify({ text })
   });
 
-  return (await r.json()).result;
+  const data = await r.json();
+
+  return data.result || "要約できませんでした";
 }
 
 // 👥 話者分離API
