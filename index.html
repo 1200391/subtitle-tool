@@ -8,35 +8,39 @@
 
 <body>
 
-<!-- 🔐 ロック画面 -->
+<!-- 🔐 ロック -->
 <div id="lock">
-  <h2>パスワード</h2>
-  <input type="password" id="pass" placeholder="パスワード">
+  <input type="password" id="pass">
   <button onclick="unlock()">入る</button>
 </div>
 
-<!-- アプリ本体 -->
 <div id="app" style="display:none;">
 
-<h1>AI文字起こし</h1>
-
+<!-- 🎤 録音 -->
+<h2>録音</h2>
 <button onclick="startRecording()">開始</button>
 <button onclick="stopRecording()">終了</button>
-
 <input id="title" placeholder="タイトル">
 <button onclick="saveCurrent()">保存</button>
 
 <div id="live"></div>
 
-<h2>履歴</h2>
-<div id="history"></div>
-
+<!-- 🔍 検索 -->
 <h2>検索</h2>
 <input id="search">
 <button onclick="searchText()">検索</button>
-
 <div id="result"></div>
 
+<!-- 📜 履歴 -->
+<h2>履歴</h2>
+<div id="history"></div>
+
+</div>
+
+<!-- 📄 詳細画面 -->
+<div id="detailPage" style="display:none;">
+  <button onclick="goBack()">← 戻る</button>
+  <div id="detailText"></div>
 </div>
 
 <script src="script.js"></script>
