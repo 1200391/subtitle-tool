@@ -12,13 +12,14 @@ function unlock() {
   }
 }
 
-// 📦 履歴（保存）
+// 📦 履歴
 let history = JSON.parse(localStorage.getItem("history")) || [];
 
 // 🎤 音声認識
 let recognition;
 let currentText = "";
 
+// 🎤 録音開始
 function startRecording() {
   currentText = "";
 
@@ -42,7 +43,7 @@ function startRecording() {
       }
     }
 
-    // 🔥 録音中ずっと残る表示
+    // 🔥 録音中だけ表示
     document.getElementById("live").innerText =
       currentText + "\n" + interim;
   };
@@ -50,37 +51,44 @@ function startRecording() {
   recognition.start();
 }
 
-// 🛑 停止 → AI処理
-async function stopRecording() {
-  recognition.stop();
+// 🛑 録音終了（保存しない）
+function stopRecording() {
+  if (recognition) recognition.stop();
+}
 
+// 💾 保存（ここで履歴に入る）
+async function saveCurrent() {
   if (currentText.trim() === "") return;
+
+  const title = document.getElementById("title").value || "無題";
 
   let diarized = currentText;
   let summary = "（要約失敗）";
 
   try {
-    // 👥 話者分離
     diarized = await diarize(currentText);
   } catch (e) {
     console.error("diarize失敗", e);
   }
 
   try {
-    // 🧠 要約
     summary = await summarize(diarized);
   } catch (e) {
     console.error("summarize失敗", e);
   }
 
   try {
-    // 💾 Git保存
     await saveToGit(diarized);
   } catch (e) {
     console.error("save失敗", e);
   }
 
-  const entry = "【要約】\n" + summary + "\n\n" + diarized;
+  const entry = {
+    title,
+    summary,
+    content: diarized,
+    date: new Date().toLocaleString()
+  };
 
   history.unshift(entry);
 
@@ -93,30 +101,42 @@ async function stopRecording() {
   updateHistory();
 
   document.getElementById("live").innerText = "";
+  document.getElementById("title").value = "";
+
+  alert("保存した");
 }
 
-// 📜 履歴表示
+// 📜 履歴表示（タイトルだけ）
 function updateHistory() {
   const container = document.getElementById("history");
   container.innerHTML = "";
 
-  history.forEach((text, index) => {
+  history.forEach((item, index) => {
     const div = document.createElement("div");
     div.className = "item";
-    div.innerText = text;
+
+    div.innerText = item.title + "\n" + item.date;
+
+    // 👇 クリックで詳細表示
+    div.onclick = () => {
+      document.getElementById("live").innerText =
+        "【要約】\n" + item.summary + "\n\n" + item.content;
+    };
 
     // 📋 コピー
     const copyBtn = document.createElement("button");
     copyBtn.innerText = "コピー";
-    copyBtn.onclick = () => {
-      navigator.clipboard.writeText(text);
+    copyBtn.onclick = (e) => {
+      e.stopPropagation();
+      navigator.clipboard.writeText(item.content);
       alert("コピーしました");
     };
 
     // ❌ 削除
     const deleteBtn = document.createElement("button");
     deleteBtn.innerText = "削除";
-    deleteBtn.onclick = () => {
+    deleteBtn.onclick = (e) => {
+      e.stopPropagation();
       history.splice(index, 1);
       localStorage.setItem("history", JSON.stringify(history));
       updateHistory();
@@ -133,26 +153,24 @@ function updateHistory() {
 // 🔍 検索＋要約
 async function searchText() {
   const keyword = document.getElementById("search").value;
-  let results = [];
 
-  history.forEach(text => {
-    if (text.includes(keyword)) {
-      results.push(text);
-    }
-  });
+  const results = history
+    .filter(h => h.content.includes(keyword))
+    .map(h => h.content)
+    .join("\n");
 
-  if (results.length === 0) {
+  if (!results) {
     document.getElementById("result").innerText = "該当なし";
     return;
   }
 
   try {
-    const summary = await summarize(results.join("\n"));
+    const summary = await summarize(results);
     document.getElementById("result").innerText =
       "▼要約\n" + summary;
   } catch (e) {
     console.error(e);
-    alert("検索要約でエラー");
+    alert("検索要約エラー");
   }
 }
 
@@ -180,7 +198,7 @@ async function diarize(text) {
   return data.result;
 }
 
-// 💾 GitHub保存API
+// 💾 GitHub保存
 async function saveToGit(text) {
   await fetch("/api/save", {
     method: "POST",
@@ -189,7 +207,7 @@ async function saveToGit(text) {
   });
 }
 
-// 🚀 初期表示
+// 🚀 初期化
 window.onload = () => {
   updateHistory();
 };
