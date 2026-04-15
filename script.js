@@ -1,3 +1,4 @@
+// 🔐 パスワード
 const PASSWORD = "Spoon";
 
 function unlock() {
@@ -7,11 +8,14 @@ function unlock() {
   }
 }
 
+// 📦 履歴
 let history = JSON.parse(localStorage.getItem("history")) || [];
+
+// 🎤 音声認識
 let recognition;
 let currentText = "";
 
-// 🎤 録音
+// 🎤 録音開始
 function startRecording() {
   currentText = "";
 
@@ -35,7 +39,7 @@ function startRecording() {
     const live = document.getElementById("live");
     live.innerText = currentText + "\n" + interim;
 
-    // 🔥 中央に来るスクロール
+    // 🔥 中央スクロール
     setTimeout(() => {
       live.scrollTop = live.scrollHeight / 2;
     }, 0);
@@ -44,6 +48,7 @@ function startRecording() {
   recognition.start();
 }
 
+// 🛑 録音終了
 function stopRecording() {
   if (recognition) recognition.stop();
 }
@@ -55,15 +60,16 @@ async function saveCurrent() {
   const title = document.getElementById("title").value || "無題";
 
   let diarized = currentText;
-  let summary = "（要約失敗）";
 
-  try { diarized = await diarize(currentText); } catch {}
-  try { summary = await summarize(diarized); } catch {}
+  try {
+    diarized = await diarize(currentText);
+  } catch (e) {
+    console.error(e);
+  }
 
   const item = {
     title,
     content: diarized,
-    summary,
     date: new Date().toLocaleString()
   };
 
@@ -78,7 +84,7 @@ async function saveCurrent() {
   document.getElementById("title").value = "";
 }
 
-// 📜 履歴（1行表示）
+// 📜 履歴表示
 function updateHistory() {
   const el = document.getElementById("history");
   el.innerHTML = "";
@@ -87,6 +93,7 @@ function updateHistory() {
     const div = document.createElement("div");
     div.className = "item";
 
+    // 🔥 1行表示
     div.innerText = `${h.title} | ${h.date}`;
 
     div.onclick = () => openDetail(i);
@@ -95,23 +102,26 @@ function updateHistory() {
   });
 }
 
-// 📄 詳細画面
+// 📄 詳細表示
 function openDetail(i) {
   document.getElementById("app").style.display = "none";
   document.getElementById("detailPage").style.display = "block";
 
   const h = history[i];
 
+  const formatted = formatText(h.content);
+
   document.getElementById("detailText").innerText =
-    "【要約】\n" + h.summary + "\n\n" + h.content;
+    "【" + h.title + "】\n\n" + formatted;
 }
 
+// 🔙 戻る
 function goBack() {
   document.getElementById("detailPage").style.display = "none";
   document.getElementById("app").style.display = "block";
 }
 
-// 🔍 検索＋要約
+// 🔍 検索 → 要約
 async function searchText() {
   const key = document.getElementById("search").value;
 
@@ -125,41 +135,54 @@ async function searchText() {
     return;
   }
 
-  const summary = await summarize(texts);
-  document.getElementById("result").innerText = summary;
+  try {
+    const summary = await summarize(texts);
+    document.getElementById("result").innerText = summary;
+  } catch (e) {
+    console.error(e);
+    alert("要約エラー");
+  }
 }
 
-// API
+// 🧠 テキスト整形（句読点＋改行）
+function formatText(text) {
+  return text
+    // 改行を一旦スペースに
+    .replace(/\n+/g, " ")
+
+    // 文末で改行
+    .replace(/。/g, "。\n")
+    .replace(/！/g, "！\n")
+    .replace(/？/g, "？\n")
+
+    // 連続スペース削除
+    .replace(/\s+/g, " ")
+
+    // 行頭・行末の空白削除
+    .trim();
+}
+
+// 🧠 要約API
 async function summarize(text) {
   const r = await fetch("/api/summarize", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({ text })
   });
+
   return (await r.json()).result;
 }
 
+// 👥 話者分離API
 async function diarize(text) {
   const r = await fetch("/api/diarize", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({ text })
   });
+
   return (await r.json()).result;
 }
 
-window.onload = updateHistory;
-
-// 💾 GitHub保存
-async function saveToGit(text) {
-  await fetch("/api/save", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ text })
-  });
-}
-
 // 🚀 初期化
-window.onload = () => {
-  updateHistory();
-};
+window.onload = updateHistory;
