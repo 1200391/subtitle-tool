@@ -56,33 +56,41 @@ async function stopRecording() {
 
   if (currentText.trim() === "") return;
 
+  let diarized = currentText;
+  let summary = "（要約失敗）";
+
   try {
     // 👥 話者分離
-    const diarized = await diarize(currentText);
-
-    // 🧠 要約
-    const summary = await summarize(diarized);
-
-    // 💾 GitHub保存
-    await saveToGit(diarized);
-
-    // 📦 履歴追加
-    const entry = "【要約】\n" + summary + "\n\n" + diarized;
-    history.unshift(entry);
-
-    // 🔥 最大10件
-    if (history.length > 10) {
-      history.pop();
-    }
-
-    // 🔥 保存
-    localStorage.setItem("history", JSON.stringify(history));
-
-    updateHistory();
+    diarized = await diarize(currentText);
   } catch (e) {
-    console.error(e);
-    alert("エラーが発生しました（APIキー or 通信）");
+    console.error("diarize失敗", e);
   }
+
+  try {
+    // 🧠 要約
+    summary = await summarize(diarized);
+  } catch (e) {
+    console.error("summarize失敗", e);
+  }
+
+  try {
+    // 💾 Git保存
+    await saveToGit(diarized);
+  } catch (e) {
+    console.error("save失敗", e);
+  }
+
+  const entry = "【要約】\n" + summary + "\n\n" + diarized;
+
+  history.unshift(entry);
+
+  if (history.length > 10) {
+    history.pop();
+  }
+
+  localStorage.setItem("history", JSON.stringify(history));
+
+  updateHistory();
 
   document.getElementById("live").innerText = "";
 }
