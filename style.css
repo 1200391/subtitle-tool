@@ -23,12 +23,17 @@ button {
   cursor: pointer;
 }
 
-/* 🧠 アプリ */
 #live {
+  height: 150px;
+  overflow-y: scroll;
   border: 1px solid #ccc;
   padding: 10px;
-  height: 80px;
-  background: #fff;
+  white-space: pre-wrap;
+}
+
+#detailText {
+  white-space: pre-wrap;
+  padding: 20px;
 }
 
 .item {
