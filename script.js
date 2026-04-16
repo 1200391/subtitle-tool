@@ -11,7 +11,7 @@ function unlock() {
 // 📦 履歴
 let history = JSON.parse(localStorage.getItem("history")) || [];
 
-// 🎤 録音（マイク）
+// 🎤 録音
 let mediaRecorder;
 let audioChunks = [];
 let currentText = "";
@@ -37,15 +37,14 @@ async function startRecording() {
     };
 
     mediaRecorder.start();
-
     document.getElementById("live").innerText = "録音中...";
 
-  } catch (e) {
+  } catch {
     alert("マイクが使えません");
   }
 }
 
-// 🛑 録音停止
+// 🛑 停止
 function stopRecording() {
   if (mediaRecorder) mediaRecorder.stop();
 }
@@ -62,17 +61,16 @@ async function sendAudio(blob) {
     });
 
     const data = await res.json();
-
     currentText = data.text || "文字起こし失敗";
 
     document.getElementById("live").innerText = currentText;
 
-  } catch (e) {
+  } catch {
     document.getElementById("live").innerText = "エラーが発生しました";
   }
 }
 
-// 💾 保存（話者分離込み）
+// 💾 保存（話者分離）
 async function saveCurrent() {
   if (!currentText.trim()) return;
 
@@ -81,11 +79,8 @@ async function saveCurrent() {
   let diarized = currentText;
 
   try {
-    // 🔥 句読点補正 → 話者分離
     diarized = await diarize(formatText(currentText));
-  } catch (e) {
-    console.error("話者分離失敗", e);
-  }
+  } catch {}
 
   const item = {
     title,
@@ -97,14 +92,13 @@ async function saveCurrent() {
   if (history.length > 10) history.pop();
 
   localStorage.setItem("history", JSON.stringify(history));
-
   updateHistory();
 
   document.getElementById("live").innerText = "";
   document.getElementById("title").value = "";
 }
 
-// 📜 履歴表示
+// 📜 履歴
 function updateHistory() {
   const el = document.getElementById("history");
   el.innerHTML = "";
@@ -118,21 +112,76 @@ function updateHistory() {
   });
 }
 
-// 📄 詳細表示
+// 📄 詳細画面
 function openDetail(i) {
   document.getElementById("app").style.display = "none";
   document.getElementById("detailPage").style.display = "block";
 
   const h = history[i];
 
+  window.currentDetailIndex = i;
+  window.originalText = h.content;
+
   document.getElementById("detailText").innerText =
     "【" + h.title + "】\n\n" + h.content;
+
+  createSpeakerEditor(h.content);
 }
 
 // 🔙 戻る
 function goBack() {
   document.getElementById("detailPage").style.display = "none";
   document.getElementById("app").style.display = "block";
+}
+
+// 👥 話者編集UI生成
+function createSpeakerEditor(text) {
+  const container = document.getElementById("speakerEditor");
+  container.innerHTML = "<h3>話者名編集</h3>";
+
+  const speakers = [...new Set(text.match(/話者[A-Z]/g) || [])];
+
+  speakers.forEach(s => {
+    const div = document.createElement("div");
+
+    const label = document.createElement("span");
+    label.innerText = s + " → ";
+
+    const input = document.createElement("input");
+    input.placeholder = "名前入力";
+    input.id = "map_" + s;
+
+    div.appendChild(label);
+    div.appendChild(input);
+
+    container.appendChild(div);
+  });
+
+  const btn = document.createElement("button");
+  btn.innerText = "適用";
+  btn.onclick = applySpeakerNames;
+
+  container.appendChild(btn);
+}
+
+// 👥 名前適用
+function applySpeakerNames() {
+  let text = window.originalText;
+
+  const speakers = [...new Set(text.match(/話者[A-Z]/g) || [])];
+
+  speakers.forEach(s => {
+    const input = document.getElementById("map_" + s);
+    if (input && input.value.trim()) {
+      const name = input.value.trim();
+      text = text.replace(new RegExp(s, "g"), name);
+    }
+  });
+
+  document.getElementById("detailText").innerText = text;
+
+  history[window.currentDetailIndex].content = text;
+  localStorage.setItem("history", JSON.stringify(history));
 }
 
 // 🔍 検索
@@ -145,8 +194,7 @@ async function searchText() {
   try {
     if (titleMatch) {
       const summary = await summarize(titleMatch.content);
-      document.getElementById("result").innerText =
-        summary || "要約できませんでした";
+      document.getElementById("result").innerText = summary;
       return;
     }
 
@@ -161,16 +209,14 @@ async function searchText() {
     }
 
     const summary = await summarize(texts);
+    document.getElementById("result").innerText = summary;
 
-    document.getElementById("result").innerText =
-      summary || "要約できませんでした";
-
-  } catch (e) {
+  } catch {
     document.getElementById("result").innerText = "要約に失敗しました";
   }
 }
 
-// 🧠 句読点補正
+// 🧠 整形
 function formatText(text) {
   return text
     .replace(/\n+/g, " ")
